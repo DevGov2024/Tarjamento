@@ -40,7 +40,7 @@ def iniciar_interface():
  
     janela.title("🦅 Águia - Assistente Digital")
     janela.geometry("400x350")
-    janela.configure(bg="#0c6dcf")
+    janela.configure(bg="#2b547c")
 
    
     Label(janela, text="🦅 Bem-vindo ao Águia", font=("Arial", 16)).pack(pady=10)
