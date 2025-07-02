@@ -1,6 +1,7 @@
 import fitz  
 import re
 from selenium.webdriver.common.by import By
+from docx import Document
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from tkinter import Tk, Button, Label
@@ -43,11 +44,12 @@ def iniciar_interface():
     janela.configure(bg="#2b547c")
 
    
-    Label(janela, text="🦅 Bem-vindo ao Águia", font=("Arial", 16)).pack(pady=10)
+    Label(janela, text="🦅 Águia", font=("Arial", 16)).pack(pady=10)
  
    
     Button(janela, text="📂 Ver Histórico de Ações", width=30, command=ver_historico).pack(pady=8)
     Button(janela, text= "🔐 Tarjar Dados Sensíveis em PDF", width=30, command=tarjar_pdf).pack(pady=8)
+    Button(janela, text="📝 Tarjar Dados Sensíveis em Word", width=30, command=tarjar_docx).pack(pady=8)
     Button(janela, text="❌ Sair", width=30, command=janela.destroy).pack(pady=12)
 
  
@@ -71,7 +73,38 @@ def ver_historico():
     scrollbar.config(command=texto.yview)
   
       
+def tarjar_docx():
+    caminho_arquivo = filedialog.askopenfilename(title="Selecione o arquivo Word", filetypes=[("Word Documents", "*.docx")])
+    if not caminho_arquivo:
+        return
 
+    padroes = {
+        "CPF": r"\d{3}\.\d{3}\.\d{3}-\d{2}",
+        "Telefone": r"\(?\d{2}\)?\s?\d{4,5}-\d{4}",
+        "Senha": r"senha:\s?\S+"
+    }
+
+    doc = Document(caminho_arquivo)
+    total_ocultados = 0
+
+    for paragrafo in doc.paragraphs:
+        for tipo, padrao in padroes.items():
+            novas_frases = []
+            texto_original = paragrafo.text
+            texto_modificado = re.sub(padrao, "000000", texto_original, flags=re.IGNORECASE)
+            if texto_original != texto_modificado:
+                total_ocultados += len(re.findall(padrao, texto_original, flags=re.IGNORECASE))
+                paragrafo.text = texto_modificado
+
+    if total_ocultados > 0:
+        novo_nome = caminho_arquivo.replace(".docx", "_TARJADO.docx")
+        doc.save(novo_nome)
+        messagebox.showinfo("Sucesso", f"{total_ocultados} dados sensíveis foram tarjados.\nArquivo salvo como:\n{novo_nome}")
+        log_ikarus("Dados sensíveis tarjados em Word com sucesso.")
+    else:
+        messagebox.showinfo("Nada Encontrado", "Nenhum dado sensível encontrado para tarjar.")
+        log_ikarus("Nenhum dado sensível encontrado em Word para tarjar.")
+            
 def tarjar_pdf():
     caminho_arquivo = filedialog.askopenfilename(title="Selecione o PDF", filetypes=[("PDF Files", "*.pdf")])
     if not caminho_arquivo:
