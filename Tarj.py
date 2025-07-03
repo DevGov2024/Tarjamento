@@ -57,7 +57,7 @@ def iniciar_interface():
  
 def ver_historico():
     historico_janela = Toplevel()
-    historico_janela.title("📂 Histórico de Ações do Ikarus")
+    historico_janela.title("📂 Histórico de Ações do Àguia")
     historico_janela.geometry("600x400")
     scrollbar = Scrollbar(historico_janela)
     scrollbar.pack(side=RIGHT, fill=Y)
@@ -79,10 +79,17 @@ def tarjar_docx():
         return
 
     padroes = {
-        "CPF": r"\d{3}\.\d{3}\.\d{3}-\d{2}",
-        "Telefone": r"\(?\d{2}\)?\s?\d{4,5}-\d{4}",
-        "Senha": r"senha:\s?\S+"
-    }
+    "CPF": r"\b\d{3}\.\d{3}\.\d{3}-\d{2}\b",
+    "CNPJ": r"\b\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}\b",
+    "Telefone": r"\b\(?\d{2}\)?\s?\d{4,5}-\d{4}\b",
+    "E-mail": r"\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b",
+    "Senha": r"\bsenha\s*[:=]?\s*\S+",
+    "Processo CNJ": r"\b\d{7}-\d{2}\.\d{4}\.\d{1}\.\d{2}\.\d{4}\b",
+    "CEP": r"\b\d{5}-\d{3}\b",
+    "Cartão de Crédito": r"\b(?:\d[ -]*?){13,16}\b",
+    "RG": r"\b\d{2}\.\d{3}\.\d{3}-\d{1}\b",
+    "Passaporte": r"\b[A-Z]{1}\d{7}\b",
+}
 
     doc = Document(caminho_arquivo)
     total_ocultados = 0
@@ -111,11 +118,17 @@ def tarjar_pdf():
         return  
 
     padroes = {
-        "CPF": r"\d{3}\.\d{3}\.\d{3}-\d{2}",
-        "Telefone": r"\(?\d{2}\)?\s?\d{4,5}-\d{4}",
-        "Senha": r"senha:\s?\S+"
- 
-    }
+    "CPF": r"\b\d{3}\.\d{3}\.\d{3}-\d{2}\b",
+    "CNPJ": r"\b\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}\b",
+    "Telefone": r"\b\(?\d{2}\)?\s?\d{4,5}-\d{4}\b",
+    "E-mail": r"\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b",
+    "Senha": r"\bsenha\s*[:=]?\s*\S+",
+    "Processo CNJ": r"\b\d{7}-\d{2}\.\d{4}\.\d{1}\.\d{2}\.\d{4}\b",
+    "CEP": r"\b\d{5}-\d{3}\b",
+    "Cartão de Crédito": r"\b(?:\d[ -]*?){13,16}\b",
+    "RG": r"\b\d{2}\.\d{3}\.\d{3}-\d{1}\b",
+    "Passaporte": r"\b[A-Z]{1}\d{7}\b",
+}
 
     doc = fitz.open(caminho_arquivo)
     total_ocultados = 0
