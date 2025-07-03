@@ -13,6 +13,9 @@ from tkinter import Entry, StringVar, filedialog
 from tkinter import Tk, Button, Label, ttk
 from tkinter import simpledialog
 from tkinter import messagebox
+from tkinter import PhotoImage
+from tkinter import Tk, Label
+from PIL import Image, ImageTk 
 
 import json
 config_path = "config_ikarus.json"
@@ -20,15 +23,25 @@ config_path = "config_ikarus.json"
 # ───────────────────────────────
 # HISTÓRICO
 # ───────────────────────────────
-def log_ikarus(acao):
-    with open("historico_ikarus.log", "a", encoding="utf-8") as log:
+def log_taj(acao):
+    with open("historico_taj.log", "a", encoding="utf-8") as log:
         log.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - {acao}\n")
 
 def iniciar_interface():
     janela = Tk()
-    janela.title("Águia - Assistente Digital")
+    janela.title("TAJ - Assistente Digital")
     janela.geometry("400x350")
-    janela.configure(bg="#3a88d6")  
+    janela.configure(bg="#c0da2f")  
+
+    imagem = Image.open("logo_PrefSP_sem fundo_vertical__branco_monocromático.png")
+    imagem = imagem.resize((120, 120))  
+    logo = ImageTk.PhotoImage(imagem)
+    Label(janela, image=logo, bg="#0A3979").pack(pady=10)
+    janela.logo = logo  
+
+
+    Label(janela, text="TAJ-SP - Assistente Digital", font=("Arial", 14), bg="#0A3979", fg="white").pack(pady=5)
+
  
     estilo = ttk.Style()
     estilo.configure("Custom.TButton",
@@ -39,13 +52,10 @@ def iniciar_interface():
     estilo.map("Custom.TButton",
                background=[("active", "#f7931e")])
  
-    janela.title("🦅 Águia - Assistente Digital")
+    janela.title("🦅 TAJ -SP - Assistente Digital")
     janela.geometry("400x350")
-    janela.configure(bg="#2b547c")
+    janela.configure(bg="#0A3979")
 
-   
-    Label(janela, text="🦅 Águia", font=("Arial", 16)).pack(pady=10)
- 
    
     Button(janela, text="📂 Ver Histórico de Ações", width=30, command=ver_historico).pack(pady=8)
     Button(janela, text= "🔐 Tarjar Dados Sensíveis em PDF", width=30, command=tarjar_pdf).pack(pady=8)
@@ -107,10 +117,10 @@ def tarjar_docx():
         novo_nome = caminho_arquivo.replace(".docx", "_TARJADO.docx")
         doc.save(novo_nome)
         messagebox.showinfo("Sucesso", f"{total_ocultados} dados sensíveis foram tarjados.\nArquivo salvo como:\n{novo_nome}")
-        log_ikarus("Dados sensíveis tarjados em Word com sucesso.")
+        log_taj("Dados sensíveis tarjados em Word com sucesso.")
     else:
         messagebox.showinfo("Nada Encontrado", "Nenhum dado sensível encontrado para tarjar.")
-        log_ikarus("Nenhum dado sensível encontrado em Word para tarjar.")
+        log_taj("Nenhum dado sensível encontrado em Word para tarjar.")
             
 def tarjar_pdf():
     caminho_arquivo = filedialog.askopenfilename(title="Selecione o PDF", filetypes=[("PDF Files", "*.pdf")])
@@ -154,11 +164,11 @@ def tarjar_pdf():
         doc.save(novo_nome)
         doc.close()
         messagebox.showinfo("Sucesso", f"{total_ocultados} dados sensíveis foram tarjados.\nArquivo salvo como:\n{novo_nome}")
-        log_ikarus("Dados sensíveis tarjados com sucesso.")
+        log_taj("Dados sensíveis tarjados com sucesso.")
     else:
         doc.close()
         messagebox.showinfo("Nada Encontrado", "Nenhum dado sensível encontrado para tarjar.")
-        log_ikarus("Nenhum dado sensível encontrado para tarjar.")
+        log_taj("Nenhum dado sensível encontrado para tarjar.")
 
   
 if __name__ == "__main__":
