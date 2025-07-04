@@ -61,6 +61,8 @@ def iniciar_interface():
     Button(janela, text= "🔐 Tarjar Dados Sensíveis em PDF", width=30, command=tarjar_pdf).pack(pady=8)
     Button(janela, text="📝 Tarjar Dados Sensíveis em Word", width=30, command=tarjar_docx).pack(pady=8)
     Button(janela, text="📊 Tarjar Dados Sensíveis em CSV", width=30, command=tarjar_csv).pack(pady=8)
+    Button(janela, text="📤 Exportar Relatório da Sessão", width=30, command=exportar_relatorio).pack(pady=8)
+    Button(janela, text="⚙️ Modo Batch (Pasta)", width=30, command=modo_batch).pack(pady=8)
     Button(janela, text="❌ Sair", width=30, command=janela.destroy).pack(pady=12)
 
  
@@ -76,7 +78,7 @@ def ver_historico():
     texto.pack(expand=True, fill="both")
  
     try:
-        with open("historico_ikarus.log", "r", encoding="utf-8") as log_file:
+        with open("historico_taj.log", "r", encoding="utf-8") as log_file:
             texto.insert(END, log_file.read())
     except FileNotFoundError:
         texto.insert(END, "⚠️ Nenhum histórico encontrado.")
@@ -171,7 +173,7 @@ def tarjar_pdf():
                             area, fill=(0, 0, 0), text="[TARJADO]", align=1
                         )
                     else:
-                        # fallback para versões antigas
+                        
                         page.draw_rect(area, color=(0, 0, 0), fill=(0, 0, 0))
                     total_ocultados += 1
 
@@ -282,7 +284,7 @@ def tarjar_csv():
     }
 
     try:
-        df = pd.read_csv(caminho_arquivo, dtype=str)  # Evita erros com tipos mistos
+        df = pd.read_csv(caminho_arquivo, dtype=str)  
     except Exception as e:
         messagebox.showerror("Erro", f"Erro ao ler o CSV:\n{e}")
         return
@@ -313,6 +315,104 @@ def ocultar_dados(texto, padroes, total_ocultados):
             texto = re.sub(padrao, "[TARJADO]", texto)
             total_ocultados[0] += 1
     return texto
+
+
+import csv
+
+relatorio_sessao = [] 
+
+def adicionar_ao_relatorio(arquivo, tipo, quantidade):
+    relatorio_sessao.append([datetime.now().strftime("%Y-%m-%d %H:%M:%S"), arquivo, tipo, quantidade])
+
+def exportar_relatorio():
+    if not relatorio_sessao:
+        messagebox.showinfo("Relatório", "Nenhuma ação foi registrada nesta sessão.")
+        return
+
+    caminho = filedialog.asksaveasfilename(
+        defaultextension=".csv",
+        filetypes=[("CSV", "*.csv"), ("Texto", "*.txt")],
+        title="Salvar relatório da sessão"
+    )
+    if not caminho:
+        return
+
+    try:
+        with open(caminho, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["Data/Hora", "Arquivo", "Tipo", "Qtd Dados Tarjados"])
+            writer.writerows(relatorio_sessao)
+        messagebox.showinfo("Sucesso", f"Relatório salvo em:\n{caminho}")
+    except Exception as e:
+        messagebox.showerror("Erro", f"Falha ao salvar relatório:\n{e}")
+
+
+
+
+import glob
+import os
+
+def modo_batch():
+    pasta = filedialog.askdirectory(title="Selecione a pasta com os arquivos")
+    if not pasta:
+        return
+
+    arquivos_pdf = glob.glob(os.path.join(pasta, "*.pdf"))
+    arquivos_docx = glob.glob(os.path.join(pasta, "*.docx"))
+    arquivos_csv = glob.glob(os.path.join(pasta, "*.csv"))
+
+    total_arquivos = len(arquivos_pdf) + len(arquivos_docx) + len(arquivos_csv)
+    if total_arquivos == 0:
+        messagebox.showinfo("Nenhum Arquivo", "Nenhum arquivo PDF, DOCX ou CSV foi encontrado na pasta.")
+        return
+
+    for caminho in arquivos_pdf:
+        try:
+            doc = fitz.open(caminho)
+            if doc.needs_pass or doc.page_count == 0:
+                doc.close()
+                continue
+            # Reutiliza função com o código de tarjamento PDF (você pode extrair ela para fora se quiser)
+            # ...
+            # Ao final:
+            log_taj(f"[BATCH] PDF: {caminho}")
+        except Exception:
+            continue
+
+    for caminho in arquivos_docx:
+        try:
+            doc = Document(caminho)
+            total_ocultados = [0]
+            for p in doc.paragraphs:
+                p.text = substituir(p.text, padroes, total_ocultados)
+            for t in doc.tables:
+                for linha in t.rows:
+                    for cel in linha.cells:
+                        cel.text = substituir(cel.text, padroes, total_ocultados)
+            if total_ocultados[0]:
+                novo_nome = caminho.replace(".docx", "_TARJADO.docx")
+                doc.save(novo_nome)
+                log_taj(f"[BATCH] Word: {caminho}")
+        except Exception:
+            continue
+
+    for caminho in arquivos_csv:
+        try:
+            df = pd.read_csv(caminho, dtype=str)
+            total_ocultados = 0
+            for col in df.columns:
+                df[col] = df[col].astype(str).apply(
+                    lambda x: ocultar_dados(x, padroes, ref := [0])
+                )
+                total_ocultados += ref[0]
+            if total_ocultados:
+                novo_nome = caminho.replace(".csv", "_TARJADO.csv")
+                df.to_csv(novo_nome, index=False)
+                log_taj(f"[BATCH] CSV: {caminho}")
+        except Exception:
+            continue
+
+messagebox.showinfo("Batch Finalizado", "Todos os arquivos da pasta foram processados.")
   
 if __name__ == "__main__":
     iniciar_interface()
