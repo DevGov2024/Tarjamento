@@ -255,7 +255,7 @@ def modo_batch():
 # ------------------- INTERFACE --------------------
 def iniciar_interface():
     janela = Tk()
-    janela.title("TAJ-SP - Assistente Digital")
+    janela.title("TARJ-SP - Assistente Digital")
     janela.geometry("400x500")
     janela.configure(bg="#0A3979")
 
@@ -278,7 +278,7 @@ def iniciar_interface():
             command=comando
         )
 
-    # Agora sim, os botões:
+    
     criar_botao("📂 Ver Histórico de Ações", ver_historico).pack(pady=5)
     criar_botao("🔐 Tarjar PDF", tarjar_pdf).pack(pady=5)
     criar_botao("📝 Tarjar Word", tarjar_docx).pack(pady=5)
@@ -287,7 +287,7 @@ def iniciar_interface():
     criar_botao("📤 Exportar Relatório da Sessão", exportar_relatorio).pack(pady=5)
     criar_botao("❌ Sair", janela.destroy).pack(pady=10)
 
-    # Loop da interface (mantém a janela aberta):
+    
     janela.mainloop()
 
 def ver_historico():
