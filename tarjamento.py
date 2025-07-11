@@ -138,15 +138,29 @@ def tarjar_docx():
     if not caminho_arquivo:
         return
 
+
+    padroes_escolhidos = selecionar_padroes()
+    if not padroes_escolhidos:
+        messagebox.showinfo("Cancelado", "Nenhum padrão foi selecionado.")
+        return
+
     doc = Document(caminho_arquivo)
     total_ocultados = [0]
 
+    def substituir_personalizado(texto):
+        for padrao in padroes_escolhidos.values():
+            if re.search(padrao, texto):
+                texto = re.sub(padrao, "[TARJADO]", texto)
+                total_ocultados[0] += 1
+        return texto
+
     for p in doc.paragraphs:
-        p.text = substituir(p.text, padroes, total_ocultados)
+        p.text = substituir_personalizado(p.text)
+
     for t in doc.tables:
         for linha in t.rows:
             for cel in linha.cells:
-                cel.text = substituir(cel.text, padroes, total_ocultados)
+                cel.text = substituir_personalizado(cel.text)
 
     if total_ocultados[0]:
         novo_nome = caminho_arquivo.replace(".docx", "_TARJADO.docx")
