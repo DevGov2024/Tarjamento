@@ -7,6 +7,8 @@ import pandas as pd
 from datetime import datetime
 from tkinter import Tk, Toplevel, Text, Scrollbar, Label, Button, filedialog, messagebox, RIGHT, Y, END
 from tkinter import ttk
+import tkinter as tk
+from tkinter import filedialog, messagebox
 from PIL import Image, ImageTk
 from docx import Document
 
@@ -95,17 +97,22 @@ def tarjar_pdf():
     total_ocultados = 0
     has_redaction = hasattr(doc, "apply_redactions")
 
+    padroes_escolhidos = selecionar_padroes()
+    if not padroes_escolhidos:
+       messagebox.showinfo("Cancelado", "Nenhum padrão foi selecionado.")
+       return
+
     for page in doc:
         texto_pagina = page.get_text()
-        for padrao in padroes.values():
+        for padrao in padroes_escolhidos.values():
             for ocorrencia in re.finditer(padrao, texto_pagina, re.IGNORECASE):
                 texto_encontrado = ocorrencia.group()
                 areas = page.search_for(texto_encontrado)
                 for area in areas:
                     if has_redaction:
-                        page.add_redact_annot(area, fill=(0, 0, 0), text="[TARJADO]", align=1)
+                       page.add_redact_annot(area, fill=(0, 0, 0), text="[TARJADO]", align=1)
                     else:
-                        page.draw_rect(area, color=(0, 0, 0), fill=(0, 0, 0))
+                       page.draw_rect(area, color=(0, 0, 0), fill=(0, 0, 0))
                     total_ocultados += 1
 
     if total_ocultados:
@@ -182,75 +189,7 @@ def tarjar_csv():
         log_taj("Nenhum dado sensível em CSV.")
 
 # ------------------- MODO BATCH --------------------
-def modo_batch():
-    pasta = filedialog.askdirectory(title="Selecione a pasta com os arquivos")
-    if not pasta:
-        return
 
-    arquivos = glob.glob(os.path.join(pasta, "*.*"))
-    processados = 0
-
-    for caminho in arquivos:
-        if caminho.endswith(".pdf"):
-            try:
-                doc = fitz.open(caminho)
-                if doc.needs_pass or doc.page_count == 0:
-                    continue
-                total = 0
-                for page in doc:
-                    texto = page.get_text()
-                    for padrao in padroes.values():
-                        for match in re.finditer(padrao, texto):
-                            areas = page.search_for(match.group())
-                            for area in areas:
-                                page.draw_rect(area, color=(0, 0, 0), fill=(0, 0, 0))
-                                total += 1
-                if total:
-                    novo = caminho.replace(".pdf", "_TARJADO.pdf")
-                    doc.save(novo)
-                    log_taj(f"[BATCH] PDF tarjado: {caminho}")
-                    adicionar_ao_relatorio(caminho, "PDF", total)
-                    processados += 1
-                doc.close()
-            except:
-                continue
-
-        elif caminho.endswith(".docx"):
-            try:
-                doc = Document(caminho)
-                total = [0]
-                for p in doc.paragraphs:
-                    p.text = substituir(p.text, padroes, total)
-                for t in doc.tables:
-                    for row in t.rows:
-                        for cell in row.cells:
-                            cell.text = substituir(cell.text, padroes, total)
-                if total[0]:
-                    novo = caminho.replace(".docx", "_TARJADO.docx")
-                    doc.save(novo)
-                    log_taj(f"[BATCH] Word tarjado: {caminho}")
-                    adicionar_ao_relatorio(caminho, "Word", total[0])
-                    processados += 1
-            except:
-                continue
-
-        elif caminho.endswith(".csv"):
-            try:
-                df = pd.read_csv(caminho, dtype=str)
-                total = 0
-                for col in df.columns:
-                    df[col] = df[col].astype(str).apply(lambda x: ocultar_dados(x, padroes, ref := [0]))
-                    total += ref[0]
-                if total:
-                    novo = caminho.replace(".csv", "_TARJADO.csv")
-                    df.to_csv(novo, index=False)
-                    log_taj(f"[BATCH] CSV tarjado: {caminho}")
-                    adicionar_ao_relatorio(caminho, "CSV", total)
-                    processados += 1
-            except:
-                continue
-
-    messagebox.showinfo("Batch Finalizado", f"{processados} arquivos processados.")
 
 # ------------------- INTERFACE --------------------
 def iniciar_interface():
@@ -264,7 +203,7 @@ def iniciar_interface():
     logo = ImageTk.PhotoImage(imagem)
     Label(janela, image=logo, bg="#0A3979").pack(pady=10)
     janela.logo = logo  
-    Label(janela, text="TAJ-SP - Assistente Digital", font=("Arial", 14), bg="#0A3979", fg="white").pack(pady=5)
+    Label(janela, text="TARJ-SP - Assistente Digital", font=("Arial", 14), bg="#0A3979", fg="white").pack(pady=5)
 
     def criar_botao(texto, comando):
         return Button(
@@ -283,8 +222,9 @@ def iniciar_interface():
     criar_botao("🔐 Tarjar PDF", tarjar_pdf).pack(pady=5)
     criar_botao("📝 Tarjar Word", tarjar_docx).pack(pady=5)
     criar_botao("📊 Tarjar CSV", tarjar_csv).pack(pady=5)
-    criar_botao("⚙️ Modo Batch (Pasta)", modo_batch).pack(pady=5)
-    criar_botao("📤 Exportar Relatório da Sessão", exportar_relatorio).pack(pady=5)
+    criar_botao("👁️ Pré-visualizar PDF", visualizar_pdf).pack(pady=3)
+    criar_botao("👁️ Pré-visualizar Word", visualizar_docx).pack(pady=3)
+    criar_botao("👁️ Pré-visualizar CSV", visualizar_csv).pack(pady=3)
     criar_botao("❌ Sair", janela.destroy).pack(pady=10)
 
     
@@ -306,6 +246,91 @@ def ver_historico():
         texto.insert(END, "⚠️ Nenhum histórico encontrado.")
 
     scrollbar.config(command=texto.yview)
+
+def visualizar_pdf():
+    caminho = filedialog.askopenfilename(title="Selecione um PDF", filetypes=[("PDF", "*.pdf")])
+    if not caminho:
+        return
+    try:
+        doc = fitz.open(caminho)
+        if doc.page_count == 0:
+            messagebox.showwarning("PDF Vazio", "O arquivo não possui páginas.")
+            return
+        page = doc[0]
+        pix = page.get_pixmap()
+        image_path = "preview_temp.png"
+        pix.save(image_path)
+        doc.close()
+    except Exception as e:
+        messagebox.showerror("Erro", f"Erro ao abrir PDF:\n{e}")
+        return
+
+    janela = Toplevel()
+    janela.title("Pré-visualização PDF")
+    imagem = Image.open(image_path)
+    imagem_tk = ImageTk.PhotoImage(imagem)
+    label = Label(janela, image=imagem_tk)
+    label.image = imagem_tk
+    label.pack()
+
+def visualizar_docx():
+    caminho = filedialog.askopenfilename(title="Selecione um Word", filetypes=[("Word", "*.docx")])
+    if not caminho:
+        return
+    try:
+        doc = Document(caminho)
+        parags = [p.text for p in doc.paragraphs if p.text.strip()]
+    except Exception as e:
+        messagebox.showerror("Erro", f"Erro ao abrir DOCX:\n{e}")
+        return
+
+    janela = Toplevel()
+    janela.title("Pré-visualização Word")
+    texto = Text(janela, wrap="word")
+    texto.pack(expand=True, fill="both")
+    texto.insert(END, "\n".join(parags[:20]))  # mostra até 20 parágrafos
+
+def visualizar_csv():
+    caminho = filedialog.askopenfilename(title="Selecione um CSV", filetypes=[("CSV", "*.csv")])
+    if not caminho:
+        return
+    try:
+        df = pd.read_csv(caminho)
+    except Exception as e:
+        messagebox.showerror("Erro", f"Erro ao abrir CSV:\n{e}")
+        return
+
+    janela = Toplevel()
+    janela.title("Pré-visualização CSV")
+    texto = Text(janela, wrap="none")
+    texto.pack(expand=True, fill="both")
+    texto.insert(END, df.head(20).to_string(index=False))
+
+
+def selecionar_padroes():
+    padroes_escolhidos = {}
+
+    def confirmar():
+        for chave, var in check_vars.items():
+            if var.get():
+                padroes_escolhidos[chave] = padroes[chave]
+        janela.destroy()
+
+    janela = Toplevel()
+    janela.title("Selecionar Dados a Tarjar")
+    Label(janela, text="Escolha quais dados devem ser tarjados:", font=("Arial", 10, "bold")).pack(pady=10)
+
+    check_vars = {}
+    for chave in padroes:
+        var = tk.IntVar(value=1)  # Todos marcados por padrão
+        chk = tk.Checkbutton(janela, text=chave, variable=var)
+        chk.pack(anchor="w")
+        check_vars[chave] = var
+
+    Button(janela, text="Confirmar", command=confirmar).pack(pady=10)
+    janela.wait_window()
+
+    return padroes_escolhidos
 
 
 
