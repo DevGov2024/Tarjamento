@@ -1,13 +1,16 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox, Toplevel, Label, Button, Checkbutton, IntVar
+import fitz  # PyMuPDF
 import re
 from docx import Document
+
+from PIL import Image, ImageTk
 
 # 1. Dicionário de padrões
 padroes = {
     "CPF": r"\d{3}\.\d{3}\.\d{3}-\d{2}",
     "Data": r"\d{2}/\d{2}/\d{4}",
-    # Pode adicionar outros
+    # Adicione mais se quiser
 }
 
 # 2. Selecionar quais tipos de dados serão buscados
@@ -40,64 +43,67 @@ def selecionar_padroes():
 def criar_botao(texto, comando):
     return tk.Button(root, text=texto, command=comando, width=30, bg="#4a90e2", fg="white", font=("Arial", 10, "bold"))
 
-# 4. Função principal: abrir Word e exibir ocorrências para tarjamento seletivo
-def tarjar_word_seletivo():
-    caminho = filedialog.askopenfilename(title="Selecione um arquivo Word", filetypes=[("Word Files", "*.docx")])
+# 4. Função principal: abrir PDF e exibir opções de tarjamento por ocorrência
+def tarjar_pdf_seletivo():
+    caminho = filedialog.askopenfilename(title="Selecione um PDF", filetypes=[("PDF", "*.pdf")])
     if not caminho:
         return
 
     try:
-        doc = Document(caminho)
+        doc = fitz.open(caminho)
     except Exception as e:
-        messagebox.showerror("Erro", f"Erro ao abrir o arquivo Word:\n{e}")
+        messagebox.showerror("Erro", f"Erro ao abrir o PDF:\n{e}")
+        return
+
+    if doc.page_count == 0:
+        messagebox.showwarning("PDF Vazio", "O PDF não tem páginas.")
+        doc.close()
         return
 
     padroes_escolhidos = selecionar_padroes()
     if not padroes_escolhidos:
         messagebox.showinfo("Cancelado", "Nenhum padrão selecionado.")
+        doc.close()
         return
 
-    ocorrencias = []  # Armazena (paragrafo_obj, texto_encontrado, var_checkbox)
+    ocorrencias = []  
 
-    # Buscar todas as ocorrências no texto do documento
-    for p in doc.paragraphs:
-        texto = p.text
+    
+    for page_num, page in enumerate(doc):
+        texto = page.get_text()
         for tipo, padrao in padroes_escolhidos.items():
-            for match in re.finditer(padrao, texto):
+            for match in re.finditer(padrao, texto, re.IGNORECASE):
                 encontrado = match.group()
-                var = IntVar(value=1)
-                ocorrencias.append((p, encontrado, var))
+                areas = page.search_for(encontrado)
+                for area in areas:
+                    var = IntVar(value=1)
+                    ocorrencias.append((page_num, encontrado, area, var))
 
     if not ocorrencias:
         messagebox.showinfo("Nada Encontrado", "Nenhum dado sensível encontrado.")
+        doc.close()
         return
 
-    # Interface para o usuário selecionar quais tarjados aplicar
+    # 5. Interface para o usuário escolher o que quer tarjar
     def aplicar_tarjas():
-        total = 0
-        for p, texto_encontrado, var in ocorrencias:
+        for page_num, texto, area, var in ocorrencias:
             if var.get():
-                # Substitui todas as ocorrências do texto_encontrado por [TARJADO] no parágrafo
-                novo_texto = p.text.replace(texto_encontrado, "[TARJADO]")
-                p.text = novo_texto
-                total += 1
+                page = doc[page_num]
+                page.draw_rect(area, color=(0, 0, 0), fill=(0, 0, 0))
 
-        if total == 0:
-            messagebox.showinfo("Cancelado", "Nenhum dado selecionado para tarjar.")
-            return
-
-        novo_nome = caminho.replace(".docx", "_TARJADO.docx")
+        novo_nome = caminho.replace(".pdf", "_TARJADO.pdf")
         doc.save(novo_nome)
-        messagebox.showinfo("Sucesso", f"{total} dados tarjados.\nArquivo salvo como:\n{novo_nome}")
+        messagebox.showinfo("Sucesso", f"PDF salvo como:\n{novo_nome}")
+        doc.close()
         janela.destroy()
 
     janela = Toplevel()
     janela.title("Escolha o que deseja tarjar")
 
-    for p, texto_encontrado, var in ocorrencias:
+    for i, (page_num, texto, area, var) in enumerate(ocorrencias):
         Checkbutton(
             janela,
-            text=texto_encontrado,
+            text=f"Página {page_num + 1}: {texto}",
             variable=var,
             anchor="w",
             width=60,
@@ -105,13 +111,13 @@ def tarjar_word_seletivo():
         ).pack(anchor="w")
 
     Button(janela, text="Aplicar Tarjas", command=aplicar_tarjas, bg="black", fg="white").pack(pady=10)
-    Button(janela, text="Cancelar", command=janela.destroy).pack()
+    Button(janela, text="Cancelar", command=lambda: (doc.close(), janela.destroy())).pack()
 
-# 5. Janela principal
+# 6. Janela principal
 root = tk.Tk()
-root.title("Tarjador Seletivo de Word")
+root.title("Tarjador Seletivo de PDF")
 
-criar_botao("🔐 Tarjar Word (Seleção Manual)", tarjar_word_seletivo).pack(pady=10)
+criar_botao("🔐 Tarjar PDF (Seleção Manual)", tarjar_pdf_seletivo).pack(pady=10)
 
 root.mainloop()
 
